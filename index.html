@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skills Visualizer</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --stage1: #e03131;
+      --stage2: #e8590c;
+      --stage3: #2f9e44;
+      --stage4: #1971c2;
+      --status-acquiring: #6741d9;
+      --status-active: #2f9e44;
+      --status-occasional: #e8590c;
+      --status-sustaining: #1971c2;
+      --status-atrophy: #c92a2a;
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: #dee2e6;
+      --text: #212529;
+      --text-muted: #868e96;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    header p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .header-actions { display: flex; gap: 8px; align-items: center; }
+
+    .add-btn {
+      background: #212529;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .add-btn:hover { background: #343a40; }
+
+    .icon-btn {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 16px;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .icon-btn:hover { background: var(--bg); border-color: #adb5bd; }
+
+    .legend {
+      display: flex;
+      gap: 24px;
+      padding: 12px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+      font-size: 0.75rem;
+    }
+
+    .legend-group { display: flex; align-items: center; gap: 8px; }
+    .legend-group span { font-weight: 600; color: var(--text-muted); margin-right: 4px; }
+
+    .legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .legend-item { display: flex; align-items: center; gap: 4px; }
+
+    main {
+      padding: 24px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+
+    .empty-state {
+      grid-column: 1 / -1;
+      text-align: center;
+      padding: 80px 24px;
+      color: var(--text-muted);
+    }
+    .empty-state p { margin-top: 8px; font-size: 0.875rem; }
+
+    /* CARD */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: grab;
+      transition: box-shadow 0.15s, transform 0.15s, opacity 0.15s;
+      position: relative;
+      user-select: none;
+    }
+    .card:active { cursor: grabbing; }
+    .card.dragging { opacity: 0.4; transform: scale(0.98); }
+    .card.drag-over { box-shadow: 0 0 0 2px #228be6, 0 4px 16px rgba(0,0,0,0.12); }
+    .card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+
+    .card-stage-bar {
+      height: 5px;
+      width: 100%;
+    }
+    .stage-1 { background: var(--stage1); }
+    .stage-2 { background: var(--stage2); }
+    .stage-3 { background: var(--stage3); }
+    .stage-4 { background: var(--stage4); }
+
+    .card-body { padding: 16px; }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .skill-name {
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.3;
+      cursor: text;
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+      outline: none;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 2px 4px;
+      margin: -2px -4px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .skill-name:focus {
+      border-color: #228be6;
+      background: #f1f8ff;
+      cursor: text;
+    }
+
+    .delete-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      line-height: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      transition: color 0.15s, background 0.15s;
+    }
+    .delete-btn:hover { color: #c92a2a; background: #fff5f5; }
+
+    .label {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .stage-selector, .status-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 12px;
+    }
+
+    .seg-btn {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      flex-wrap: nowrap;
+    }
+
+    .seg-btn button {
+      flex: 1;
+      border: none;
+      background: var(--bg);
+      padding: 5px 2px;
+      font-size: 0.65rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .seg-btn button:not(:last-child) { border-right: 1px solid var(--border); }
+
+    .seg-btn button.active.s1 { background: var(--stage1); color: white; }
+    .seg-btn button.active.s2 { background: var(--stage2); color: white; }
+    .seg-btn button.active.s3 { background: var(--stage3); color: white; }
+    .seg-btn button.active.s4 { background: var(--stage4); color: white; }
+
+    .status-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .status-pill {
+      border: 1.5px solid var(--border);
+      background: var(--bg);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 0.7rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .status-pill.active[data-status="acquiring"] { background: var(--status-acquiring); color: white; border-color: var(--status-acquiring); }
+    .status-pill.active[data-status="active"] { background: var(--status-active); color: white; border-color: var(--status-active); }
+    .status-pill.active[data-status="occasional"] { background: var(--status-occasional); color: white; border-color: var(--status-occasional); }
+    .status-pill.active[data-status="sustaining"] { background: var(--status-sustaining); color: white; border-color: var(--status-sustaining); }
+    .status-pill.active[data-status="atrophy"] { background: var(--status-atrophy); color: white; border-color: var(--status-atrophy); }
+
+    .drag-hint {
+      font-size: 0.65rem;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 6px 0 2px;
+      letter-spacing: 0.04em;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Skills Visualizer</h1>
+    <p>Drag to reorder &middot; Click name to edit</p>
+  </div>
+  <div class="header-actions">
+    <button class="icon-btn" onclick="importSkills()" title="Import skills from JSON file">Import</button>
+    <button class="icon-btn" onclick="exportSkills()" title="Export skills as JSON file">Export</button>
+    <button class="add-btn" onclick="addSkill()">+ Add Skill</button>
+  </div>
+  <input type="file" id="import-input" accept=".json,application/json" style="display:none" onchange="handleImportFile(event)">
+</header>
+
+<div class="legend">
+  <div class="legend-group">
+    <span>STAGE</span>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--stage1)"></span> Unconscious incompetence</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--stage2)"></span> Conscious incompetence</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--stage3)"></span> Conscious competence</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--stage4)"></span> Unconscious competence</div>
+  </div>
+  <div class="legend-group">
+    <span>STATUS</span>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--status-acquiring)"></span> Acquiring</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--status-active)"></span> Active use</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--status-occasional)"></span> Occasional use</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--status-sustaining)"></span> Self-sustaining</div>
+    <div class="legend-item"><span class="legend-dot" style="background:var(--status-atrophy)"></span> Risk of atrophy</div>
+  </div>
+</div>
+
+<main>
+  <div class="board" id="board">
+    <div class="empty-state" id="empty">
+      <strong>No skills yet</strong>
+      <p>Click <em>+ Add Skill</em> to get started.</p>
+    </div>
+  </div>
+</main>
+
+<script>
+  const STAGES = [
+    { key: 1, label: 'Unconscious\nincompetence', short: 'UI' },
+    { key: 2, label: 'Conscious\nincompetence',  short: 'CI' },
+    { key: 3, label: 'Conscious\ncompetence',    short: 'CC' },
+    { key: 4, label: 'Unconscious\ncompetence',  short: 'UC' },
+  ];
+
+  const STATUSES = [
+    { key: 'acquiring',  label: 'Acquiring' },
+    { key: 'active',     label: 'Active use' },
+    { key: 'occasional', label: 'Occasional use' },
+    { key: 'sustaining', label: 'Self-sustaining' },
+    { key: 'atrophy',    label: 'Risk of atrophy' },
+  ];
+
+  let skills = [];
+  let dragSrcId = null;
+
+  function load() {
+    try { skills = JSON.parse(localStorage.getItem('skills-v1') || '[]'); } catch { skills = []; }
+    render();
+  }
+
+  function save() {
+    localStorage.setItem('skills-v1', JSON.stringify(skills));
+  }
+
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2);
+  }
+
+  function addSkill() {
+    skills.unshift({ id: uid(), name: 'New Skill', stage: 1, status: 'acquiring' });
+    save();
+    render();
+    // focus the name field of the first card
+    const first = document.querySelector('.skill-name');
+    if (first) { first.focus(); selectAll(first); }
+  }
+
+  function selectAll(el) {
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  }
+
+  function deleteSkill(id) {
+    skills = skills.filter(s => s.id !== id);
+    save();
+    render();
+  }
+
+  function setStage(id, stage) {
+    const s = skills.find(s => s.id === id);
+    if (s) { s.stage = stage; save(); renderCard(s); }
+  }
+
+  function setStatus(id, status) {
+    const s = skills.find(s => s.id === id);
+    if (s) { s.status = status; save(); renderCard(s); }
+  }
+
+  function updateName(id, name) {
+    const s = skills.find(s => s.id === id);
+    if (s) { s.name = name.trim() || 'Unnamed'; save(); }
+  }
+
+  // ---- Rendering ----
+
+  function renderCard(skill) {
+    const existing = document.getElementById('card-' + skill.id);
+    const el = buildCard(skill);
+    if (existing) existing.replaceWith(el);
+    else document.getElementById('board').appendChild(el);
+  }
+
+  function buildCard(skill) {
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.id = 'card-' + skill.id;
+    card.draggable = true;
+
+    // Stage bar
+    const bar = document.createElement('div');
+    bar.className = `card-stage-bar stage-${skill.stage}`;
+    card.appendChild(bar);
+
+    // Body
+    const body = document.createElement('div');
+    body.className = 'card-body';
+
+    // Header row
+    const hdr = document.createElement('div');
+    hdr.className = 'card-header';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'skill-name';
+    nameEl.contentEditable = 'true';
+    nameEl.textContent = skill.name;
+    nameEl.spellcheck = false;
+    nameEl.addEventListener('focus', () => selectAll(nameEl));
+    nameEl.addEventListener('blur', () => updateName(skill.id, nameEl.textContent));
+    nameEl.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); nameEl.blur(); } });
+    // Prevent drag from starting when clicking the name
+    nameEl.addEventListener('mousedown', e => e.stopPropagation());
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'delete-btn';
+    delBtn.title = 'Delete skill';
+    delBtn.textContent = '×';
+    delBtn.addEventListener('mousedown', e => e.stopPropagation());
+    delBtn.addEventListener('click', () => deleteSkill(skill.id));
+
+    hdr.appendChild(nameEl);
+    hdr.appendChild(delBtn);
+    body.appendChild(hdr);
+
+    // Stage
+    const stageLabel = document.createElement('div');
+    stageLabel.className = 'label';
+    stageLabel.textContent = 'Stage';
+    body.appendChild(stageLabel);
+
+    const seg = document.createElement('div');
+    seg.className = 'seg-btn';
+    STAGES.forEach(st => {
+      const btn = document.createElement('button');
+      btn.title = st.label.replace('\n', ' ');
+      btn.textContent = st.short;
+      if (skill.stage === st.key) btn.className = `active s${st.key}`;
+      btn.addEventListener('mousedown', e => e.stopPropagation());
+      btn.addEventListener('click', () => setStage(skill.id, st.key));
+      seg.appendChild(btn);
+    });
+    body.appendChild(seg);
+
+    // Status
+    const statusLabel = document.createElement('div');
+    statusLabel.className = 'label';
+    statusLabel.style.marginTop = '10px';
+    statusLabel.textContent = 'Status';
+    body.appendChild(statusLabel);
+
+    const pills = document.createElement('div');
+    pills.className = 'status-pills';
+    STATUSES.forEach(st => {
+      const pill = document.createElement('button');
+      pill.className = 'status-pill' + (skill.status === st.key ? ' active' : '');
+      pill.dataset.status = st.key;
+      pill.textContent = st.label;
+      pill.addEventListener('mousedown', e => e.stopPropagation());
+      pill.addEventListener('click', () => setStatus(skill.id, st.key));
+      pills.appendChild(pill);
+    });
+    body.appendChild(pills);
+
+    card.appendChild(body);
+
+    // Drag events
+    card.addEventListener('dragstart', onDragStart);
+    card.addEventListener('dragend', onDragEnd);
+    card.addEventListener('dragover', onDragOver);
+    card.addEventListener('dragleave', onDragLeave);
+    card.addEventListener('drop', onDrop);
+
+    return card;
+  }
+
+  function render() {
+    const board = document.getElementById('board');
+    const empty = document.getElementById('empty');
+    board.innerHTML = '';
+    if (skills.length === 0) {
+      board.appendChild(empty);
+      return;
+    }
+    skills.forEach(s => board.appendChild(buildCard(s)));
+  }
+
+  // ---- Drag & Drop ----
+
+  function onDragStart(e) {
+    dragSrcId = this.id.replace('card-', '');
+    this.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragSrcId);
+  }
+
+  function onDragEnd() {
+    document.querySelectorAll('.card').forEach(c => {
+      c.classList.remove('dragging', 'drag-over');
+    });
+    dragSrcId = null;
+  }
+
+  function onDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (this.id !== 'card-' + dragSrcId) this.classList.add('drag-over');
+  }
+
+  function onDragLeave() {
+    this.classList.remove('drag-over');
+  }
+
+  function onDrop(e) {
+    e.preventDefault();
+    this.classList.remove('drag-over');
+    const targetId = this.id.replace('card-', '');
+    if (dragSrcId && dragSrcId !== targetId) {
+      const srcIdx = skills.findIndex(s => s.id === dragSrcId);
+      const tgtIdx = skills.findIndex(s => s.id === targetId);
+      const [moved] = skills.splice(srcIdx, 1);
+      skills.splice(tgtIdx, 0, moved);
+      save();
+      render();
+    }
+  }
+
+  // ---- Import / Export ----
+
+  function exportSkills() {
+    const json = JSON.stringify(skills, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'skills-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function importSkills() {
+    document.getElementById('import-input').value = '';
+    document.getElementById('import-input').click();
+  }
+
+  function handleImportFile(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (!Array.isArray(data)) throw new Error('Expected an array');
+        // Validate each entry has required fields
+        const valid = data.every(s => typeof s.id === 'string' && typeof s.name === 'string'
+          && typeof s.stage === 'number' && typeof s.status === 'string');
+        if (!valid) throw new Error('Invalid skill format');
+        skills = data;
+        save();
+        render();
+      } catch (err) {
+        alert('Could not import: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  load();
+</script>
+</body>
+</html>
