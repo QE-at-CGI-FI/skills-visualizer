@@ -1,0 +1,32 @@
+[
+  {
+    "id": "mnrhgjopzko3ox081zn",
+    "name": "Domain-driven design",
+    "stage": 2,
+    "status": "acquiring"
+  },
+  {
+    "id": "mnrh8ivjxj1h6e0wf99",
+    "name": "Programmatic testing on unit level",
+    "stage": 3,
+    "status": "acquiring"
+  },
+  {
+    "id": "mnrd74cvg6p2arcvs9q",
+    "name": "Programmatic testing on system level",
+    "stage": 4,
+    "status": "acquiring"
+  },
+  {
+    "id": "mnrd6ge5k9xesvq0bsh",
+    "name": "Test process improvement assessment",
+    "stage": 3,
+    "status": "acquiring"
+  },
+  {
+    "id": "mnrd4ydic511s19iwds",
+    "name": "Improvisation based on techniques",
+    "stage": 4,
+    "status": "active"
+  }
+]
